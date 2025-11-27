@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نظام إدارة التعديات</title>
+  <base target="_top">
+  <?!= include("css"); ?>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>نظام إدارة التعديات على الأراضي الحكومية</h1>
+      <p>توثيق شامل ومتابعة دقيقة لجميع حالات التعدي</p>
+    </header>
+
+    <div class="actions">
+      <a href="?page=form" class="btn btn-primary btn-lg">إضافة تعدي جديد</a>
+      <button onclick="location.reload()" class="btn btn-secondary">تحديث</button>
+    </div>
+
+    <div class="stats-cards">
+      <div class="card"><h3>الإجمالي</h3><p id="total">0</p></div>
+      <div class="card warning"><h3>قيد المتابعة</h3><p id="pending">0</p></div>
+      <div class="card success"><h3>تمت الإزالة</h3><p id="removed">0</p></div>
+    </div>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="ابحث برقم التعدي أو اسم المتعدي..." onkeyup="filterTable()">
+    </div>
+
+    <div class="table-container">
+      <table id="encroachmentsTable">
+        <thead>
+          <tr>
+            <th>المعرف</th><th>رقم التعدي</th><th>المتعدي</th><th>الحوض / الجهة</th>
+            <th>المساحة</th><th>الحالة</th><th>التاريخ</th><th>عمليات</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let allData = [];
+    function loadData() {
+      google.script.run.withSuccessHandler(data => {
+        allData = data;
+        renderTable(data);
+        document.getElementById("total").textContent = data.length;
+        document.getElementById("pending").textContent = data.filter(r => r["الحالة"] === "قيد المتابعة").length;
+        document.getElementById("removed").textContent = data.filter(r => r["حالة الإزالة"]).length;
+      }).getAllEncroachments();
+    }
+    function renderTable(data) {
+      document.getElementById("tableBody").innerHTML = data.map(r => `
+        <tr>
+          <td><strong>${r["معرف التعدي"]}</strong></td>
+          <td>${r["رقم التعدي"]||"-"}</td>
+          <td>${r["اسم المتعدي"]||"-"}</td>
+          <td>${r["الحوض"]||""} ${r["الجهة"] ? "/ "+r["الجهة"] : ""}</td>
+          <td><strong>${r["المساحة الكلية"]} م²</strong></td>
+          <td><span class="status ${r["الحالة"]?.includes("إزالة")?"success":"warning"}">${r["الحالة"]}</span></td>
+          <td>${new Date(r["التاريخ"]).toLocaleDateString("ar-EG")}</td>
+          <td><button class="btn-small" onclick="alert('المعرف: ${r["معرف التعدي"]}')">تفاصيل</button></td>
+        </tr>`).join("");
+    }
+    function filterTable() {
+      const term = document.getElementById("searchInput").value.toLowerCase();
+      const filtered = allData.filter(r => Object.values(r).some(v => v.toString().toLowerCase().includes(term)));
+      renderTable(filtered);
+    }
+    window.onload = loadData;
+  </script>
+</body>
+</html>

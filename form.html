@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8">
+  <title>إضافة تعدي جديد</title>
+  <base target="_top">
+  <?!= include("css"); ?>
+</head>
+<body class="form-page">
+  <div class="container">
+    <div class="form-card">
+      <h2>إضافة تعدي جديد</h2>
+      <form id="encroachmentForm">
+        <div class="grid-2">
+          <div class="field"><label>رقم التعدي</label><input name="serialNumber"></div>
+          <div class="field"><label>رقم الصحيفة</label><input name="newspaperNumber"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>نوع الأرض</label><input name="landType" placeholder="زراعية / سكنية / صناعية"></div>
+          <div class="field"><label>الحوض <span style="color:red">*</span></label><input name="basin" required></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>الجهة</label>
+            <select name="side"><option value="">اختر</option><option>شرق</option><option>غرب</option><option>شمال</option><option>جنوب</option><option>وسط</option></select>
+          </div>
+          <div class="field"><label>المستأجر الأصلي</label><input name="originalTenant"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>اسم المتعدي <span style="color:red">*</span></label><input name="encroacherName" required></div>
+          <div class="field"><label>صلة القرابة</label><input name="relation"></div>
+        </div>
+
+        <fieldset>
+          <legend>الحدود والمساحات (م²)</legend>
+          <div class="grid-4">
+            <input placeholder="حد شرقي" name="eastBorder">
+            <input type="number" placeholder="مساحة شرق" name="eastArea">
+            <input placeholder="حد غربي" name="westBorder">
+            <input type="number" placeholder="مساحة غرب" name="westArea">
+            <input placeholder="حد شمالي" name="northBorder">
+            <input type="number" placeholder="مساحة شمال" name="northArea">
+            <input placeholder="حد جنوبي" name="southBorder">
+            <input type="number" placeholder="مساحة جنوب" name="southArea">
+          </div>
+        </fieldset>
+
+        <div class="grid-2">
+          <div class="field"><label>الجهة المسؤولة</label><input name="responsibleAuthority"></div>
+          <div class="field"><label>رقم الصادر</label><input name="outgoingNumber"></div>
+        </div>
+
+        <div class="field"><label>ملاحظات</label><textarea name="notes" rows="3"></textarea></div>
+        <div class="field"><label>إحداثيات (Lat,Lng)</label><input name="latLng" placeholder="مثال: 24.7136,46.6753"></div>
+        <div class="field"><label>رابط الخريطة</label><input name="mapLink" placeholder="https://maps.google.com/..."></div>
+
+        <div class="field">
+          <label>صور الموقع</label>
+          <input type="file" multiple accept="image/*" id="photoInput">
+          <div id="photoPreview" class="preview-grid"></div>
+        </div>
+        <div class="field">
+          <label>وثائق مرفقة</label>
+          <input type="file" multiple id="docInput">
+          <div id="docPreview" class="preview-grid"></div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary btn-lg">إضافة التعدي</button>
+          <a href="/" class="btn btn-secondary">العودة</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const photos = [], docs = [];
+    document.getElementById("photoInput").onchange = e => handleFiles(e.target.files, photos, "photoPreview");
+    document.getElementById("docInput").onchange = e => handleFiles(e.target.files, docs, "docPreview");
+
+    function handleFiles(files, arr, previewId) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          arr.push({name: file.name, data: ev.target.result});
+          const div = document.createElement("div");
+          div.className = "preview-item";
+          div.innerHTML = file.type.startsWith("image/") 
+            ? `<img src="${ev.target.result}"><span>${file.name}</span>`
+            : `<span>ملف</span><span>${file.name}</span>`;
+          document.getElementById(previewId).appendChild(div);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById("encroachmentForm").onsubmit = function(e) {
+      e.preventDefault();
+      const fd = {
+        serialNumber: e.target.serialNumber.value,
+        newspaperNumber: e.target.newspaperNumber.value,
+        landType: e.target.landType.value,
+        basin: e.target.basin.value,
+        side: e.target.side.value,
+        originalTenant: e.target.originalTenant.value,
+        encroacherName: e.target.encroacherName.value,
+        relation: e.target.relation.value,
+        eastBorder: e.target.eastBorder.value,
+        eastArea: e.target.eastArea.value,
+        westBorder: e.target.westBorder.value,
+        westArea: e.target.westArea.value,
+        northBorder: e.target.northBorder.value,
+        northArea: e.target.northArea.value,
+        southBorder: e.target.southBorder.value,
+        southArea: e.target.southArea.value,
+        responsibleAuthority: e.target.responsibleAuthority.value,
+        outgoingNumber: e.target.outgoingNumber.value,
+        notes: e.target.notes.value,
+        latLng: e.target.latLng.value,
+        mapLink: e.target.mapLink.value,
+        photos: photos,
+        docs: docs
+      };
+
+      google.script.run.withSuccessHandler(res => {
+        if (res.success) {
+          alert("تم بنجاح! المعرف: " + res.id);
+          window.location.href = "/";
+        } else alert("خطأ: " + res.message);
+      }).addEncroachment(fd);
+    };
+  </script>
+</body>
+</html>
