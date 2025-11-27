@@ -3,75 +3,108 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>نظام إدارة التعديات</title>
-  <base target="_top">
-  <?!= include("css"); ?>
+  <title>لوحة التحكم - نظام التعديات</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+  <?!= HtmlService.createHtmlOutputFromFile('CSS').getContent(); ?>
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1>نظام إدارة التعديات على الأراضي الحكومية</h1>
-      <p>توثيق شامل ومتابعة دقيقة لجميع حالات التعدي</p>
-    </header>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-success shadow">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold fs-4" href="/">نظام إدارة التعديات</a>
+      <a href="?page=form" class="btn btn-warning fw-bold">إضافة تعدي جديد</a>
+    </div>
+  </nav>
 
-    <div class="actions">
-      <a href="?page=form" class="btn btn-primary btn-lg">إضافة تعدي جديد</a>
-      <button onclick="location.reload()" class="btn btn-secondary">تحديث</button>
+  <div class="container-fluid py-4">
+    <div class="row g-4" id="stats">
+      <div class="col-md-4">
+        <div class="card text-white bg-danger shadow">
+          <div class="card-body">
+            <h5>إجمالي التعديات</h5>
+            <h2 id="totalCount">0</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-white bg-primary shadow">
+          <div class="card-body">
+            <h5>إجمالي المساحة</h5>
+            <h2 id="totalArea">0 م²</h2>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="stats-cards">
-      <div class="card"><h3>الإجمالي</h3><p id="total">0</p></div>
-      <div class="card warning"><h3>قيد المتابعة</h3><p id="pending">0</p></div>
-      <div class="card success"><h3>تمت الإزالة</h3><p id="removed">0</p></div>
-    </div>
-
-    <div class="search-box">
-      <input type="text" id="searchInput" placeholder="ابحث برقم التعدي أو اسم المتعدي..." onkeyup="filterTable()">
-    </div>
-
-    <div class="table-container">
-      <table id="encroachmentsTable">
-        <thead>
-          <tr>
-            <th>المعرف</th><th>رقم التعدي</th><th>المتعدي</th><th>الحوض / الجهة</th>
-            <th>المساحة</th><th>الحالة</th><th>التاريخ</th><th>عمليات</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
+    <div class="row mt-4">
+      <div class="col-lg-6">
+        <div class="card shadow">
+          <div class="card-header bg-dark text-white">خريطة التعديات</div>
+          <div id="map" style="height:380px;"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card shadow">
+          <div class="card-header bg-dark text-white">أحدث التعديات</div>
+          <div class="card-body">
+            <table id="dataTable" class="table table-striped table-hover">
+              <thead class="table-dark">
+                <tr>
+                  <th>التاريخ</th>
+                  <th>المتعدي</th>
+                  <th>الحوض</th>
+                  <th>المساحة</th>
+                  <th>الحالة</th>
+                  <th>عرض</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
   <script>
-    let allData = [];
-    function loadData() {
-      google.script.run.withSuccessHandler(data => {
-        allData = data;
-        renderTable(data);
-        document.getElementById("total").textContent = data.length;
-        document.getElementById("pending").textContent = data.filter(r => r["الحالة"] === "قيد المتابعة").length;
-        document.getElementById("removed").textContent = data.filter(r => r["حالة الإزالة"]).length;
-      }).getAllEncroachments();
-    }
-    function renderTable(data) {
-      document.getElementById("tableBody").innerHTML = data.map(r => `
-        <tr>
-          <td><strong>${r["معرف التعدي"]}</strong></td>
-          <td>${r["رقم التعدي"]||"-"}</td>
-          <td>${r["اسم المتعدي"]||"-"}</td>
-          <td>${r["الحوض"]||""} ${r["الجهة"] ? "/ "+r["الجهة"] : ""}</td>
-          <td><strong>${r["المساحة الكلية"]} م²</strong></td>
-          <td><span class="status ${r["الحالة"]?.includes("إزالة")?"success":"warning"}">${r["الحالة"]}</span></td>
-          <td>${new Date(r["التاريخ"]).toLocaleDateString("ar-EG")}</td>
-          <td><button class="btn-small" onclick="alert('المعرف: ${r["معرف التعدي"]}')">تفاصيل</button></td>
-        </tr>`).join("");
-    }
-    function filterTable() {
-      const term = document.getElementById("searchInput").value.toLowerCase();
-      const filtered = allData.filter(r => Object.values(r).some(v => v.toString().toLowerCase().includes(term)));
-      renderTable(filtered);
-    }
-    window.onload = loadData;
+    let map = L.map('map').setView([26.8206, 30.8025], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    google.script.run.withSuccessHandler(data => {
+      $('#totalCount').text(data.length);
+      const areaSum = data.reduce((a,b) => a + (Number(b['المساحة الكلية م² (أتوماتيك)'])||0), 0);
+      $('#totalArea').text(areaSum.toLocaleString() + ' م²');
+
+      data.forEach(r => {
+        if (r['موقع على الخريطة (Lat,Lng)']) {
+          const [lat,lng] = r['موقع على الخريطة (Lat,Lng)'].split(',');
+          L.marker([lat,lng]).addTo(map)
+            .bindPopup(`<b>${r['اسم المتعدي']}</b><br>${r['المساحة الكلية م² (أتوماتيك)']} م²`);
+        }
+      });
+
+      $('#dataTable').DataTable({
+        data: data,
+        order: [[0, 'desc']],
+        columns: [
+          { data: 'تاريخ التسجيل', render: d => new Date(d).toLocaleDateString('ar-EG') },
+          { data: 'اسم المتعدي' },
+          { data: 'الحوض' },
+          { data: 'المساحة الكلية م² (أتوماتيك)' },
+          { data: 'حالة الإزالة', render: s => `<span class="badge bg-warning">${s}</span>` },
+          { data: 'رابط الخريطة', render: l => l ? `<a href="${l}" target="_blank" class="btn btn-sm btn-info">عرض</a>` : '' }
+        ],
+        language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
+      });
+    }).getAllEncroachments();
   </script>
 </body>
 </html>
